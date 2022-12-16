@@ -61,9 +61,19 @@ async function onLoadMoreSubmit () {
       gallery.insertAdjacentHTML('beforeend', markupGallery(imagesArr));
       simpleLightbox.refresh();
       slowScroll();
-      if(Math.ceil(searchResult.data.totalHits / pixabayApi.per_page) < pixabayApi.page) {
+      if(Math.ceil(searchResult.data.totalHits / pixabayApi.per_page) === pixabayApi.page) {
         btnLoadMore.classList.add('is-hidden');
-        Notiflix.Notify.info("'We're sorry, but you've reached the end of search results.")
+        Notiflix.Notify.info("We're sorry, but you've reached the end of search results.")
       }
     } catch(err) {console.log(err)}
+}
+
+function slowScroll () {
+  const { height: cardHeight } = document
+  .querySelector(".gallery")
+  .firstElementChild.getBoundingClientRect();
+  window.scrollBy({
+    top: cardHeight * 2,
+    behavior: "smooth",
+  });
 }

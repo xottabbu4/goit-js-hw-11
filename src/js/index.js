@@ -1,91 +1,69 @@
-import { fetchImages } from '../js/fetchImages';
+import { PixabayApi } from "./fetchImages";
+import markupGallery from "../templates/markupGallery.hbs";
 import Notiflix from 'notiflix';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
+const searchForm = document.querySelector('#search-form');
 const input = document.querySelector('.search-form-input');
-const btnSearch = document.querySelector('.search-form-button');
+const searchBtn = document.querySelector('.search-form-button');
 const gallery = document.querySelector('.gallery');
 const btnLoadMore = document.querySelector('.load-more');
-let gallerySimpleLightbox = new SimpleLightbox('.gallery a');
 
-btnLoadMore.style.display = 'none';
+let simpleLightbox = new SimpleLightbox('.gallery a');
 
-let pageNumber = 1;
+const pixabayApi = new PixabayApi()
 
-btnSearch.addEventListener('click', e => {
-  e.preventDefault();
-  cleanGallery();
-  const trimmedValue = input.value.trim();
-if (trimmedValue !== '') {
-    fetchImages(trimmedValue, pageNumber).then(foundData => {
-      if (foundData.hits.length === 0) {
-        Notiflix.Notify.failure(
-          'Sorry, there are no images matching your search query. Please try again.'
-        );
-      } else {
-        renderImageList(foundData.hits);
-        Notiflix.Notify.success(
-          `Hooray! We found ${foundData.totalHits} images.`
-        );
-          btnLoadMore.style.display = 'block';
-          gallerySimpleLightbox.refresh();
-      }
-    });
+searchForm.addEventListener('submit', onSearchFormSubmit);
+btnLoadMore.addEventListener('click', onLoadMoreSubmit)
+
+async function onSearchFormSubmit(event) {
+  event.preventDefault();
+  gallery.innerHTML = '';
+  btnLoadMore.classList.add('is-hidden');
+  pixabayApi.page = 1;
+  pixabayApi.searchQuery = event.target.elements.searchQuery.value.trim();
+
+  if(!pixabayApi.searchQuery) {
+    Notiflix.Notify.failure('Enter the keyword, please');
+    return;
   }
-});
 
-btnLoadMore.addEventListener('click', () => {
-  pageNumber++;
-const trimmedValue = input.value.trim();
-btnLoadMore.style.display = 'none';
- fetchImages(trimmedValue, pageNumber).then(foundData => {
-    if (foundData.hits.length === 0) {
-      Notiflix.Notify.failure(
-        'Sorry, there are no images matching your search query. Please try again.'
-      );
-      btnLoadMore.style.display = 'none';
-    } else {
-      renderImageList(foundData.hits);
-      Notiflix.Notify.success(
-        `Hooray! We found ${foundData.totalHits} images.`
-        );
-    btnLoadMore.style.display = 'block';
+  searchBtn.disabled = true;
+
+  try{    
+    const searchResult = await pixabayApi.fetchImages()
+    const imagesArr = searchResult.data.hits;    
+    
+    if (imagesArr.length === 0) {
+      Notiflix.Notify.failure('Sorry, there are no images matching your search query. Please try again.')
+      throw new Error("Limit error");
     }
-  });
 
-});
-
-function renderImageList(images) {
-  console.log(images, 'images');
-  const markup = images
-    .map(image => {
-      console.log('img', image);
-        return `<div class="photo-card">
-      
-       <a href="${image.largeImageURL}"><img class="photo" src="${image.webformatURL}" alt="${image.tags}" title="${image.tags}" loading="lazy"/></a>
-        <div class="info">
-           <p class="info-item">
-    <b>Likes</b> <span class="info-item-api"> ${image.likes} </span>
-</p>
-            <p class="info-item">
-                <b>Views</b> <span class="info-item-api">${image.views}</span>  
-            </p>
-            <p class="info-item">
-                <b>Comments</b> <span class="info-item-api">${image.comments}</span>  
-            </p>
-            <p class="info-item">
-                <b>Downloads</b> <span class="info-item-api">${image.downloads}</span> 
-            </p>
-        </div>
-    </div>`;
-    })
-    .join('');
-  gallery.innerHTML += markup;
+    gallery.innerHTML = markupGallery(imagesArr);
+    simpleLightbox.refresh();
+    Notiflix.Notify.info(`Hooray! We found ${searchResult.data.totalHits} images.`)
+    if(searchResult.data.totalHits > pixabayApi.per_page) {
+      btnLoadMore.classList.remove('is-hidden');
+    }
+    searchBtn.disabled = false;
+  } catch(err) {console.log(err)}
+  
+  input.value = '';
 }
 
-function cleanGallery() {
-  gallery.innerHTML = '';
-    pageNumber = 1;
-    btnLoadMore.style.display = 'none';
+async function onLoadMoreSubmit () {
+  pixabayApi.page += 1;
+  
+    try {
+      const searchResult = await pixabayApi.fetchImages()
+      const imagesArr = searchResult.data.hits;         
+      gallery.insertAdjacentHTML('beforeend', markupGallery(imagesArr));
+      simpleLightbox.refresh();
+      slowScroll();
+      if(Math.ceil(searchResult.data.totalHits / pixabayApi.per_page) < pixabayApi.page) {
+        btnLoadMore.classList.add('is-hidden');
+        Notiflix.Notify.info("'We're sorry, but you've reached the end of search results.")
+      }
+    } catch(err) {console.log(err)}
 }

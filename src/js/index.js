@@ -81,11 +81,11 @@ function renderImageList(images) {
     </div>`;
     })
     .join('');
-  gallery.innerHTML = markup;
+  gallery.innerHTML += markup;
 }
 
 function cleanGallery() {
-  gallery.innerHTML += '';
+  gallery.innerHTML = '';
     pageNumber = 1;
     btnLoadMore.style.display = 'none';
 }

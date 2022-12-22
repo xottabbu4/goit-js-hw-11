@@ -19,37 +19,46 @@ btnLoadMore.addEventListener('click', onLoadMoreSubmit)
 
 async function onSearchFormSubmit(event) {
   event.preventDefault();
-  gallery.innerHTML = '';
-  btnLoadMore.classList.add('is-hidden');
   pixabayApi.page = 1;
   pixabayApi.searchQuery = event.target.elements.searchQuery.value.trim();
 
-  if(!pixabayApi.searchQuery) {
-    Notiflix.Notify.failure('Enter the keyword, please');
-    return;
-  }
-
-  searchBtn.disabled = true;
 
   try{    
     const searchResult = await pixabayApi.fetchImages()
     const imagesArr = searchResult.data.hits;    
+
+    if (!pixabayApi.searchQuery) {
+      gallery.innerHTML = '';
+      btnLoadMore.classList.add('is-hidden');
+      
+    Notiflix.Notify.failure('Enter the keyword, please');
+    return;
+  }
     
     if (imagesArr.length === 0) {
+      gallery.innerHTML = '';
+      btnLoadMore.classList.add('is-hidden');
+
       Notiflix.Notify.failure('Sorry, there are no images matching your search query. Please try again.')
       throw new Error("Limit error");
     }
 
-    gallery.innerHTML = markupGallery(imagesArr);
-    simpleLightbox.refresh();
-    Notiflix.Notify.info(`Hooray! We found ${searchResult.data.totalHits} images.`)
-    if(searchResult.data.totalHits > pixabayApi.per_page) {
-      btnLoadMore.classList.remove('is-hidden');
+    if (imagesArr.length < pixabayApi.per_page) {
+      gallery.innerHTML = markupGallery(imagesArr);
+      btnLoadMore.classList.add('is-hidden');
+      simpleLightbox.refresh();
+
+      Notiflix.Notify.info("We're sorry, but you've reached the end of search results.");
+        return;
     }
-    searchBtn.disabled = false;
-  } catch(err) {console.log(err)}
-  
-  input.value = '';
+
+    gallery.innerHTML = markupGallery(imagesArr);
+    btnLoadMore.classList.remove('is-hidden');
+    simpleLightbox.refresh();
+
+    Notiflix.Notify.info(`Hooray! We found ${searchResult.data.totalHits} images.`)
+  } catch (err) { console.log(err);}
+
 }
 
 async function onLoadMoreSubmit () {
@@ -61,11 +70,17 @@ async function onLoadMoreSubmit () {
       gallery.insertAdjacentHTML('beforeend', markupGallery(imagesArr));
       simpleLightbox.refresh();
       slowScroll();
+
+      if (imagesArr.length === pixabayApi.page) {
+        btnLoadMore.classList.add('is-hidden');
+      }
+
       if(Math.ceil(searchResult.data.totalHits / pixabayApi.per_page) === pixabayApi.page) {
         btnLoadMore.classList.add('is-hidden');
-        Notiflix.Notify.info("We're sorry, but you've reached the end of search results.")
+        Notiflix.Notify.info("We're sorry, but you've reached the end of search results.");
+        return;
       }
-    } catch(err) {console.log(err)}
+    } catch (err) { console.log(err); }
 }
 
 function slowScroll () {
